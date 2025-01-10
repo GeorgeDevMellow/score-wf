@@ -125,6 +125,14 @@ app.post("/", async (req, res) => {
       JSON.stringify(combinedData, null, 2)
     );
 
+    console.log("UTM метки из formData перед отправкой в HubSpot:", {
+      utm_campaign: formData.utm_campaign,
+      utm_content: formData.utm_content,
+      utm_medium: formData.utm_medium,
+      utm_source: formData.utm_source,
+      utm_term: formData.utm_term,
+    });
+
     const hubspotUrl = "https://api.hubapi.com/crm/v3/objects/contacts";
 
     const hubspotOptions = {
@@ -133,6 +141,7 @@ app.post("/", async (req, res) => {
         "Content-Type": "application/json",
         Authorization: `Bearer ${process.env.HUBSPOT_TOKEN}`,
       },
+
       body: JSON.stringify({
         properties: {
           email: formData.leadEmail,
