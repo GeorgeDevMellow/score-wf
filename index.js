@@ -126,6 +126,7 @@ app.post("/", async (req, res) => {
     );
 
     const hubspotUrl = "https://api.hubapi.com/crm/v3/objects/contacts";
+
     const hubspotOptions = {
       method: "POST",
       headers: {
@@ -140,13 +141,13 @@ app.post("/", async (req, res) => {
           custom_source: formData.leadSource || "Website",
           contact_role: formData.leadRole,
           phone: formData.leadPhone || "NoPhone",
-          ga_id: formData.leadGAID || "NoGAID",
+          ga_id: formData.gaCookie || "NoGAID",
           country: formData.leadCountry,
-          utm_campaign: formData.leadUtmCampaign || "NoCampaign",
-          utm_content: formData.leadUtmContent || "NoContent",
-          utm_medium: formData.leadUtmMedium || "NoMedium",
-          utm_source: formData.leadUtmSource || "NoSource",
-          utm_term: formData.leadUtmTerm || "NoTerm",
+          utm_campaign: formData.utm_campaign || "NoCampaign",
+          utm_content: formData.utm_content || "NoContent",
+          utm_medium: formData.utm_medium || "NoMedium",
+          utm_source: formData.utm_source || "NoSource",
+          utm_term: formData.utm_term || "NoTerm",
         },
       }),
     };
