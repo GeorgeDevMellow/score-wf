@@ -3,11 +3,9 @@ import fetch from "node-fetch";
 import { WebSocketServer } from "ws";
 import { createServer } from "http";
 import dotenv from "dotenv";
-import cookieParser from "cookie-parser";
 dotenv.config();
 
 const app = express();
-app.use(cookieParser());
 
 const PORT = process.env.PORT || 3000;
 app.use(express.json());
@@ -88,9 +86,6 @@ app.post("/", async (req, res) => {
   const formData = req.body.payload.data;
   console.log("Данные формы:", JSON.stringify(formData, null, 2));
 
-  const referralCode = req.cookies.referral_code || "NoReferral";
-  console.log("Referral Code:", referralCode);
-
   const scoreUrl = "https://api2.usemellow.com/process";
   const optionsScore = {
     method: "POST",
@@ -163,7 +158,7 @@ app.post("/", async (req, res) => {
           utm_medium: formData.utm_medium || "NoMedium",
           utm_source: formData.utm_source || "NoSource",
           utm_term: formData.utm_term || "NoTerm",
-          referral_code: referralCode,
+          referral_code: formData.referralCode,
           custom_language: formData.hsLang,
           lead_tags: formData.formName,
         },
