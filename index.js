@@ -164,7 +164,7 @@ app.post("/", async (req, res) => {
           utm_source: formData.utm_source || "NoSource",
           utm_term: formData.utm_term || "NoTerm",
           referral_code: referralCode,
-          hs_language: hsLang,
+          hs_language: formData.hsLang,
           lead_tags: formData.formName,
         },
       }),
