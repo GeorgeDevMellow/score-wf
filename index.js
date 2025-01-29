@@ -6,7 +6,6 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-
 const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
@@ -80,116 +79,112 @@ const checkAndCreateWebhook = async () => {
 
 checkAndCreateWebhook();
 
+const findContactByEmail = async (email) => {
+  const url = "https://api.hubapi.com/crm/v3/objects/contacts/search";
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.HUBSPOT_TOKEN}`,
+    },
+    body: JSON.stringify({
+      filterGroups: [
+        {
+          filters: [
+            {
+              propertyName: "email",
+              operator: "EQ",
+              value: email,
+            },
+          ],
+        },
+      ],
+      properties: ["email"],
+    }),
+  });
+
+  const data = await response.json();
+  return data.total > 0 ? data.results[0].id : null;
+};
+
+const updateContact = async (contactId, formData) => {
+  const url = `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`;
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.HUBSPOT_TOKEN}`,
+    },
+    body: JSON.stringify({
+      properties: mapFormDataToHubSpot(formData),
+    }),
+  });
+
+  return response.json();
+};
+
+const createContact = async (formData) => {
+  const url = "https://api.hubapi.com/crm/v3/objects/contacts";
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.HUBSPOT_TOKEN}`,
+    },
+    body: JSON.stringify({
+      properties: mapFormDataToHubSpot(formData),
+    }),
+  });
+
+  return response.json();
+};
+
+const mapFormDataToHubSpot = (formData) => {
+  return {
+    email: formData.leadEmail,
+    firstname: formData.leadFirstName || "NoName",
+    company_size: formData.leadTeamSize,
+    custom_source: formData.leadSource || "Website",
+    contact_role: formData.leadRole,
+    phone: formData.leadPhone || "NoPhone",
+    ga_id: formData.gaCookie || "NoGAID",
+    country: formData.leadCountry,
+    utm_campaign: formData.utm_campaign || "NoCampaign",
+    utm_content: formData.utm_content || "NoContent",
+    utm_medium: formData.utm_medium || "NoMedium",
+    utm_source: formData.utm_source || "NoSource",
+    utm_term: formData.utm_term || "NoTerm",
+    referral_code: formData.referralCode,
+    custom_language: formData.hsLang,
+    lead_tags: formData.formName,
+  };
+};
+
 app.post("/", async (req, res) => {
   console.log("Получены данные из вебхука:", JSON.stringify(req.body, null, 2));
 
   const formData = req.body.payload.data;
   console.log("Данные формы:", JSON.stringify(formData, null, 2));
 
-  const scoreUrl = "https://api2.usemellow.com/process";
-  const optionsScore = {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      data: {
-        email: formData.leadEmail,
-        name: formData.leadFirstName || "empty name",
-        role: formData.leadRole,
-        team_size: formData.leadTeamSize,
-        country: formData.leadCountry,
-      },
-    }),
-  };
-
   try {
-    const responseScore = await fetch(scoreUrl, optionsScore);
-    if (!responseScore.ok) {
-      throw new Error(`Error: ${responseScore.status}`);
+    const existingContactId = await findContactByEmail(formData.leadEmail);
+
+    let hubspotResponse;
+    if (existingContactId) {
+      console.log(`Контакт найден: ${existingContactId}, обновляем данные...`);
+      hubspotResponse = await updateContact(existingContactId, formData);
+    } else {
+      console.log("Контакт не найден, создаем нового...");
+      hubspotResponse = await createContact(formData);
     }
 
-    const resData = await responseScore.json();
-    console.log(
-      "Получены данные из score API:",
-      JSON.stringify(resData, null, 2)
-    );
+    console.log("Ответ от HubSpot:", JSON.stringify(hubspotResponse, null, 2));
 
-    const combinedData = {
-      ...formData,
-      score: resData.score,
-      self_service: resData.self_service,
-    };
-
-    console.log(
-      "Объединенные данные для HubSpot:",
-      JSON.stringify(combinedData, null, 2)
-    );
-
-    console.log("UTM метки из formData перед отправкой в HubSpot:", {
-      utm_campaign: formData.utm_campaign,
-      utm_content: formData.utm_content,
-      utm_medium: formData.utm_medium,
-      utm_source: formData.utm_source,
-      utm_term: formData.utm_term,
-    });
-
-    const hubspotUrl = "https://api.hubapi.com/crm/v3/objects/contacts";
-
-    const hubspotOptions = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.HUBSPOT_TOKEN}`,
-      },
-
-      body: JSON.stringify({
-        properties: {
-          email: formData.leadEmail,
-          firstname: formData.leadFirstName || "NoName",
-          company_size: formData.leadTeamSize,
-          custom_source: formData.leadSource || "Website",
-          contact_role: formData.leadRole,
-          phone: formData.leadPhone || "NoPhone",
-          ga_id: formData.gaCookie || "NoGAID",
-          country: formData.leadCountry,
-          utm_campaign: formData.utm_campaign || "NoCampaign",
-          utm_content: formData.utm_content || "NoContent",
-          utm_medium: formData.utm_medium || "NoMedium",
-          utm_source: formData.utm_source || "NoSource",
-          utm_term: formData.utm_term || "NoTerm",
-          referral_code: formData.referralCode,
-          custom_language: formData.hsLang,
-          lead_tags: formData.formName,
-        },
-      }),
-    };
-
-    const hubspotResponse = await fetch(hubspotUrl, hubspotOptions);
-    if (!hubspotResponse.ok) {
-      throw new Error(
-        `Error sending data to HubSpot: ${hubspotResponse.status}`
-      );
-    }
-
-    const hubspotResData = await hubspotResponse.json();
-    console.log("Ответ от HubSpot:", JSON.stringify(hubspotResData, null, 2));
-
-    setTimeout(() => {
-      connectedClients.forEach((client) => {
-        client.send(
-          JSON.stringify({
-            score: resData.score,
-            self_service: resData.self_service,
-          })
-        );
-      });
-    }, 2000);
+    res.send("Запрос обработан, данные обновлены в HubSpot");
   } catch (err) {
-    console.log(err);
+    console.error("Ошибка при отправке данных в HubSpot:", err);
+    res.status(500).send("Ошибка при обработке запроса");
   }
-
-  res.send("Запрос с клиента получен, обработан и вернулся результат");
 });
 
 server.listen(PORT, () => {
