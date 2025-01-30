@@ -107,7 +107,7 @@ const findContactByEmail = async (email) => {
   return data.total > 0 ? data.results[0].id : null;
 };
 
-const updateContact = async (contactId, formData) => {
+const updateContact = async (contactId, properties) => {
   const url = `https://api.hubapi.com/crm/v3/objects/contacts/${contactId}`;
   const response = await fetch(url, {
     method: "PATCH",
@@ -115,15 +115,13 @@ const updateContact = async (contactId, formData) => {
       "Content-Type": "application/json",
       Authorization: `Bearer ${process.env.HUBSPOT_TOKEN}`,
     },
-    body: JSON.stringify({
-      properties: mapFormDataToHubSpot(formData),
-    }),
+    body: JSON.stringify({ properties }),
   });
 
   return response.json();
 };
 
-const createContact = async (formData) => {
+const createContact = async (properties) => {
   const url = "https://api.hubapi.com/crm/v3/objects/contacts";
   const response = await fetch(url, {
     method: "POST",
@@ -131,15 +129,39 @@ const createContact = async (formData) => {
       "Content-Type": "application/json",
       Authorization: `Bearer ${process.env.HUBSPOT_TOKEN}`,
     },
-    body: JSON.stringify({
-      properties: mapFormDataToHubSpot(formData),
-    }),
+    body: JSON.stringify({ properties }),
   });
 
   return response.json();
 };
 
-const mapFormDataToHubSpot = (formData) => {
+const getScoreData = async (formData) => {
+  const scoreUrl = "https://api2.usemellow.com/process";
+  const optionsScore = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      data: {
+        email: formData.leadEmail,
+        name: formData.leadFirstName || "empty name",
+        role: formData.leadRole,
+        team_size: formData.leadTeamSize,
+        country: formData.leadCountry,
+      },
+    }),
+  };
+
+  const responseScore = await fetch(scoreUrl, optionsScore);
+  if (!responseScore.ok) {
+    throw new Error(`Error: ${responseScore.status}`);
+  }
+
+  return responseScore.json();
+};
+
+const mapFormDataToHubSpot = (formData, resData) => {
   return {
     email: formData.leadEmail,
     firstname: formData.leadFirstName || "NoName",
@@ -157,6 +179,7 @@ const mapFormDataToHubSpot = (formData) => {
     referral_code: formData.referralCode,
     custom_language: formData.hsLang,
     lead_tags: formData.formName,
+    custom_score: resData.score,
   };
 };
 
@@ -167,23 +190,46 @@ app.post("/", async (req, res) => {
   console.log("Данные формы:", JSON.stringify(formData, null, 2));
 
   try {
+    const resData = await getScoreData(formData);
+    console.log(
+      "Получены данные из score API:",
+      JSON.stringify(resData, null, 2)
+    );
+
+    const combinedData = mapFormDataToHubSpot(formData, resData);
+    console.log(
+      "Объединенные данные для HubSpot:",
+      JSON.stringify(combinedData, null, 2)
+    );
+
     const existingContactId = await findContactByEmail(formData.leadEmail);
 
     let hubspotResponse;
     if (existingContactId) {
       console.log(`Контакт найден: ${existingContactId}, обновляем данные...`);
-      hubspotResponse = await updateContact(existingContactId, formData);
+      hubspotResponse = await updateContact(existingContactId, combinedData);
     } else {
       console.log("Контакт не найден, создаем нового...");
-      hubspotResponse = await createContact(formData);
+      hubspotResponse = await createContact(combinedData);
     }
 
     console.log("Ответ от HubSpot:", JSON.stringify(hubspotResponse, null, 2));
 
+    setTimeout(() => {
+      connectedClients.forEach((client) => {
+        client.send(
+          JSON.stringify({
+            score: resData.score,
+            self_service: resData.self_service,
+          })
+        );
+      });
+    }, 2000);
+
     res.send("Запрос обработан, данные обновлены в HubSpot");
   } catch (err) {
-    console.error("Ошибка при отправке данных в HubSpot:", err);
-    res.status(500).send("Ошибка при обработке запроса");
+    console.error("Ошибка при обработке запроса:", err);
+    res.status(500).send("Ошибка сервера");
   }
 });
 
