@@ -180,7 +180,7 @@ const mapFormDataToHubSpot = (formData, resData) => {
     custom_language: formData.hsLang,
     lead_tags: formData.formName,
     custom_score: resData.score,
-    affiliate_code: formData.affiliate_aid,
+    affiliate_code: formData.affiliateAid,
   };
 };
 
