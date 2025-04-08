@@ -181,6 +181,7 @@ const mapFormDataToHubSpot = (formData, resData) => {
     lead_tags: formData.formName,
     custom_score: resData.score,
     affiliate_code: formData.affiliateAid,
+    lead_tags_details: formData.demoSource,
   };
 };
 
