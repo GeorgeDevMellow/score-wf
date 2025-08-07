@@ -1,13 +1,16 @@
 {
   "name": "wf-score-heroku",
   "version": "1.0.0",
-  "description": "",
+  "description": "Optimized webhook processor for Webflow forms with HubSpot integration and real-time WebSocket updates",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "echo \"No tests specified\" && exit 0",
+    "lint": "echo \"No linting configured\" && exit 0"
   },
-  "keywords": [],
+  "keywords": ["webflow", "hubspot", "webhook", "websocket", "score", "api"],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -15,5 +18,8 @@
     "express": "^4.21.2",
     "node-fetch": "^3.3.2",
     "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
